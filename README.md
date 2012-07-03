@@ -1,4 +1,4 @@
 Recommendation
 ==============
 
- personalized recommendation for the users of the Econophysics forum
+ This is the personalized recommendation for the users of the Econophysics forum

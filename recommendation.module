@@ -1,0 +1,142 @@
+<?php
+class UserController extends EP_Controller_Action {
+
+	//const IMG_DIR = 'papers/code/';
+
+	/**
+	 * initialize the controller
+	 */
+	public function init() {
+		parent :: _init('Users');
+	}
+
+	
+	
+
+	
+	/**
+	 * Check username availability.
+	 *
+	 * @return null
+	 */
+	function checkavlAction() {
+		$uid = $this->_getParam('id');
+		$users = new Users();
+		$user = $users->fetchRow($users->select()->where('id=?', $uid));
+		$this->_helper->json($user == null ? 1 : 0);
+	}
+
+	
+	/**
+	 * show history of the user
+	 */
+	function showAction() {
+		$similar = new Similar();//create a 'similar' zend_db_table class instances which can use the database table 'semilar'
+
+			/*recommend papers for user $uid based on the uses' similarity table. The recommendation score of paper i (r_i) is calculated by the sum of similarity between current user and users who have voted this paper.
+			   We also take view and download actions as vote. There are 3 kinds of vote type which identified by the v.score : 1: view; 3: download; 10: digg vote. They have the different weight when calculate the recommendation result.
+			*/
+			$sql = 'select v.voteId,p.*, CASE u.useRealName WHEN 1 THEN CONCAT(u.firstName, \' \', u.lastName) WHEN 0 THEN s.user2 END AS realName,sum(case v.score when 1 then s.value when 10 then 5*s.value when 3 then 5*s.value end) as r';
+			$sql .= ' from similar s left join votes v on v.voteUser = s.user2 ';
+			$sql .= ' left join papers p on p.id = v.voteId ';
+			$sql .= ' left join users u on u.id = p.postUser ';
+			$sql .= ' where s.user1="' . $uid . '" and  p.removed = 0 and v.category = "Papers" and not exists (select * from votes v2 where v2.voteUser = "' . $uid . '" and v2.voteId = v.voteId and v2.category = "Papers") group by v.voteId order by r desc limit 0,5';
+			$papers = $categories->query($sql)->fetchAll();
+			$this->view->recomPapers = $papers;
+			// search similar users
+			$sql = 'select u.id, CASE u.useRealName WHEN 1 THEN CONCAT(u.firstName, \' \', u.lastName) WHEN 0 THEN s.user2 END AS realName from similar s ';
+			$sql .= " left join users u on u.id=s.user2 where s.user1= '" . $uid . "' and s.value !=0 order by s.value desc limit 0,5";
+			$similarUsers = $categories->query($sql)->fetchAll();
+			$this->view->similarUsers = $similarUsers;
+			$notified = new Notified();
+			$sql = 'select p.* from papers p right join notified n on n.paper = p.id where n.user="' . $uid . '" ORDER BY p.postTime DESC';
+			$this->view->rowCount = sizeof($notified->query($sql)->fetchAll());
+
+	}
+	function updatesimilar() {
+		//similar users
+		  /*similarity of user i and j are defined as 
+			    s_{ij}=\sum{v_{ia}v_{ja}}/(W_iW_j)
+		  where v_{ia} is the vote value of user i to paper a.
+		  */
+
+				//calculate the vote value of voteUser to voteId
+				$sql = 'select voteUser, voteId, sum(case score when 1 then 1 when 10 then 5 when 3 then 5 end) as w from votes where category ="Papers" and voteUser != "guest" group by voteUser,voteId order by voteUser';
+				$weights = $post->query($sql)->fetchAll();
+
+				$w = array ();
+				$lastuser = $weights[0]["voteUser"];
+				$sumw2 = 0;
+				//calculate the the W_i for each user i
+				foreach ($weights as $weight) {
+					$id = $weight["voteUser"];
+					if ($id != "guest") {
+						if ($id != $lastuser) {
+							$w[$lastuser] = $sumw2;
+							$lastuser = $id;
+							$sumw2 = $weight["w"] * $weight["w"];
+						} else {
+							$sumw2 += $weight["w"] * $weight["w"];
+						}
+					}
+				}
+
+				$w[$lastuser] = $sumw2;
+				$num = count($w);
+				$i = 1;
+
+				// calculate the similarity and update it
+				foreach ($w as $user1 => $wp1) {
+					$j = 0;
+					foreach ($w as $user2 => $wp2) {
+						$wc = 0;
+						foreach ($weights as $weight) {
+							if ($weight["voteUser"] == $user1) {
+								$pid = $weight["voteId"];
+								foreach ($weights as $weight2) {
+									if ($weight2["voteUser"] == $user2 && $weight2["voteId"] == $pid) {
+										$wc += $weight["w"] * $weight2["w"];
+									}
+								}
+							}
+						}
+						if ($j >= $i) {
+							//update similar
+							$s = $wc / pow($wp1 * $wp2, 0.5);
+							$row1 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user1 . '" and user2 = "' . $user2 . '" )'));
+							$row2 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user2 . '" and user2 = "' . $user1 . '" )'));
+							if ($row1) {
+								$row1->value = $s;
+								$row1->updateTime = date('Y-m-d ');
+								$row1->save();
+							} else {
+								$row1 = $similar->createRow();
+								$row1->user1 = $user1;
+								$row1->user2 = $user2;
+								$row1->value = $s;
+								$row1->updateTime = date('Y-m-d ');
+								$row1->save();
+							}
+							if ($row2) {
+								$row2->value = $s;
+								$row2->updateTime = date('Y-m-d ');
+								$row2->save();
+							} else {
+								$row2 = $similar->createRow();
+								$row2->user1 = $user2;
+								$row2->user2 = $user1;
+								$row2->value = $s;
+								$row2->updateTime = date('Y-m-d ');
+								$row2->save();
+							}
+
+						}
+						$j++;
+					}
+					$i++;
+				}
+		
+		//similar user end;
+	}
+}
+?>
