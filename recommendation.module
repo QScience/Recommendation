@@ -100,8 +100,10 @@
 						if ($j >= $i) {
 							//update similar
 							$s = $wc / pow($wp1 * $wp2, 0.5);
-							$row1 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user1 . '" and user2 = "' . $user2 . '" )'));
-							$row2 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user2 . '" and user2 = "' . $user1 . '" )'));
+							//$row1 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user1 . '" and user2 = "' . $user2 . '" )'));
+							//$row2 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user2 . '" and user2 = "' . $user1 . '" )'));
+							$row1 = db_query("select * from similar where user1=:user1 and user2=:user2",array(":user1" => $user1, ":user2" => $user2)->execute;
+							$row2 = db_query("select * from similar where user1=:user2 and user2=:user1",array(":user1" => $user1, ":user2" => $user2)->execute;
 							if ($row1) {
 								$row1->value = $s;
 								$row1->updateTime = date('Y-m-d ');
