@@ -1,56 +1,52 @@
 <?php
-class UserController extends EP_Controller_Action {
-
-	//const IMG_DIR = 'papers/code/';
-
-	/**
-	 * initialize the controller
-	 */
-	public function init() {
-		parent :: _init('Users');
-	}
-
-	
-	
-
-	
 	/**
 	 * Check username availability.
 	 *
 	 * @return null
 	 */
-	function checkavlAction() {
-		$uid = $this->_getParam('id');
-		$users = new Users();
-		$user = $users->fetchRow($users->select()->where('id=?', $uid));
-		$this->_helper->json($user == null ? 1 : 0);
+	function checkavl() {
+		$uid = $user->uid;
+		if($uid == 0){
+			return false;
+		}else{
+			return true;
+		}
+		//$users = new Users();
+		//$user = $users->fetchRow($users->select()->where('id=?', $uid));
+		//$this->_helper->json($user == null ? 1 : 0);
 	}
 
 	
 	/**
 	 * show history of the user
 	 */
-	function showAction() {
-		$similar = new Similar();//create a 'similar' zend_db_table class instances which can use the database table 'semilar'
-
+	function show() {
+		//$similar = new Similar();//create a 'similar' zend_db_table class instances which can use the database table 'semilar'
 			/*recommend papers for user $uid based on the uses' similarity table. The recommendation score of paper i (r_i) is calculated by the sum of similarity between current user and users who have voted this paper.
 			   We also take view and download actions as vote. There are 3 kinds of vote type which identified by the v.score : 1: view; 3: download; 10: digg vote. They have the different weight when calculate the recommendation result.
 			*/
+			global $user;
 			$sql = 'select v.voteId,p.*, CASE u.useRealName WHEN 1 THEN CONCAT(u.firstName, \' \', u.lastName) WHEN 0 THEN s.user2 END AS realName,sum(case v.score when 1 then s.value when 10 then 5*s.value when 3 then 5*s.value end) as r';
 			$sql .= ' from similar s left join votes v on v.voteUser = s.user2 ';
 			$sql .= ' left join papers p on p.id = v.voteId ';
 			$sql .= ' left join users u on u.id = p.postUser ';
-			$sql .= ' where s.user1="' . $uid . '" and  p.removed = 0 and v.category = "Papers" and not exists (select * from votes v2 where v2.voteUser = "' . $uid . '" and v2.voteId = v.voteId and v2.category = "Papers") group by v.voteId order by r desc limit 0,5';
-			$papers = $categories->query($sql)->fetchAll();
-			$this->view->recomPapers = $papers;
+			//$sql .= ' where s.user1="' . $uid . '" and  p.removed = 0 and v.category = "Papers" and not exists (select * from votes v2 where v2.voteUser = "' . $uid . '" and v2.voteId = v.voteId and v2.category = "Papers") group by v.voteId order by r desc limit 0,5';
+			$sql .= ' where s.user1=":uid" and  p.removed = 0 and v.category = "Papers" and not exists (select * from votes v2 where v2.voteUser = ":uid" and v2.voteId = v.voteId and v2.category = "Papers") group by v.voteId order by r desc limit 0,5';
+			//$papers = $categories->query($sql)->fetchAll();
+			$papers = db_query($sql, array(":uid" => $user->uid));
+			//$this->view->recomPapers = $papers;
 			// search similar users
 			$sql = 'select u.id, CASE u.useRealName WHEN 1 THEN CONCAT(u.firstName, \' \', u.lastName) WHEN 0 THEN s.user2 END AS realName from similar s ';
-			$sql .= " left join users u on u.id=s.user2 where s.user1= '" . $uid . "' and s.value !=0 order by s.value desc limit 0,5";
-			$similarUsers = $categories->query($sql)->fetchAll();
-			$this->view->similarUsers = $similarUsers;
-			$notified = new Notified();
-			$sql = 'select p.* from papers p right join notified n on n.paper = p.id where n.user="' . $uid . '" ORDER BY p.postTime DESC';
-			$this->view->rowCount = sizeof($notified->query($sql)->fetchAll());
+			//$sql .= " left join users u on u.id=s.user2 where s.user1= '" . $uid . "' and s.value !=0 order by s.value desc limit 0,5";
+			$sql .= " left join users u on u.id=s.user2 where s.user1= ':uid' and s.value !=0 order by s.value desc limit 0,5";
+			//$similarUsers = $categories->query($sql)->fetchAll();
+			$similarUsers = db_query($sql, array(":uid" => $user->uid));
+			//$this->view->similarUsers = $similarUsers;
+			//$notified = new Notified();
+			//$sql = 'select p.* from papers p right join notified n on n.paper = p.id where n.user="' . $uid . '" ORDER BY p.postTime DESC';
+			$sql = 'select p.* from papers p right join notified n on n.paper = p.id where n.user=":uid" ORDER BY p.postTime DESC';
+			$rowCount = sizeof(db_query($sql, array(":uid" => $user->uid)));
+			//$this->view->rowCount = sizeof($notified->query($sql)->fetchAll());
 
 	}
 	function updatesimilar() {
@@ -62,7 +58,8 @@ class UserController extends EP_Controller_Action {
 
 				//calculate the vote value of voteUser to voteId
 				$sql = 'select voteUser, voteId, sum(case score when 1 then 1 when 10 then 5 when 3 then 5 end) as w from votes where category ="Papers" and voteUser != "guest" group by voteUser,voteId order by voteUser';
-				$weights = $post->query($sql)->fetchAll();
+				//$weights = $post->query($sql)->fetchAll();
+				$weights = db_query($sql);
 
 				$w = array ();
 				$lastuser = $weights[0]["voteUser"];
@@ -138,5 +135,4 @@ class UserController extends EP_Controller_Action {
 		
 		//similar user end;
 	}
-}
 ?>
