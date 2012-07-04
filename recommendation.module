@@ -20,7 +20,7 @@
 	/**
 	 * show history of the user
 	 */
-	function show() {
+	function showhistory() {
 		//$similar = new Similar();//create a 'similar' zend_db_table class instances which can use the database table 'semilar'
 			/*recommend papers for user $uid based on the uses' similarity table. The recommendation score of paper i (r_i) is calculated by the sum of similarity between current user and users who have voted this paper.
 			   We also take view and download actions as vote. There are 3 kinds of vote type which identified by the v.score : 1: view; 3: download; 10: digg vote. They have the different weight when calculate the recommendation result.
