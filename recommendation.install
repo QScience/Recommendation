@@ -1,0 +1,44 @@
+<?php
+/*
+ * Implements hook_schema
+ */
+function recommendation_schema(){
+    $schema['similarity'] = array(
+        'description' => 'Stores the similarity between users.',
+        'fields' => array(
+            'uid1' => array(
+                'type' => 'int',
+                'unsigned' => TRUE,
+                'description' => 'uid of user1'
+            ),
+            'uid2' => array(
+                'type' => 'int',
+                'unsigned' => TRUE,
+                'description' => 'uid of user2'
+            ),
+            'score' => array(
+                'type' => 'float',
+                'unsigned' => TRUE,
+                'size' => 'normal',
+                'default' => 0,
+                'description' => 'Score that defines the similarity between user1 and user2'
+            ),
+            'update_time' => array(
+                'type' => 'int',
+                'unsigned' => TRUE,
+                'description' => 'Timestamp that when the score is updated.Table similarity will be updated in a certain time that can be configured'
+            )
+        )
+    );
+    return $schema;
+}
+
+/*
+ * Implements hook_install
+ * 
+ * Set default recommended entity type
+ */
+function recommendation_install(){
+    variable_set('recommend_entity_type','node');
+    variable_set('recommend_number','10');
+}
