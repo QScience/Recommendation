@@ -49,9 +49,9 @@ function recommendation_block_view($delta = ''){
     $blocks['subject'] = 'Recommendation';
     $contents = '<ul>';
     $recommendation = array();
-    $similarity = db_query('SELECT * FROM similarity WHERE uid1=:uid1',array(':uid1' => $user->uid));
+    $similarity = db_query('SELECT * FROM {similarity} WHERE uid1=:uid1',array(':uid1' => $user->uid));
     foreach($similarity as $row){
-        $similar_entity = db_query('SELECT entity_id,value from votingapi_vote WHERE uid=:uid',array(':uid' => $row->uid2));
+        $similar_entity = db_query('SELECT entity_id,value from {votingapi_vote} WHERE uid=:uid',array(':uid' => $row->uid2));
         foreach($similar_entity as $entity){
             $recommendation[$entity->entity_id] = $recommendation[$entity->entity_id] + value;
         }
@@ -96,24 +96,24 @@ function showhistory() {
      */
     global $user;
     $sql = 'select v.voteId,p.*, CASE u.useRealName WHEN 1 THEN CONCAT(u.firstName, \' \', u.lastName) WHEN 0 THEN s.user2 END AS realName,sum(case v.score when 1 then s.value when 10 then 5*s.value when 3 then 5*s.value end) as r';
-    $sql .= ' from similar s left join votes v on v.voteUser = s.user2 ';
-    $sql .= ' left join papers p on p.id = v.voteId ';
-    $sql .= ' left join users u on u.id = p.postUser ';
+    $sql .= ' from {similar} s left join {votes} v on v.voteUser = s.user2 ';
+    $sql .= ' left join {papers} p on p.id = v.voteId ';
+    $sql .= ' left join {users} u on u.id = p.postUser ';
     //$sql .= ' where s.user1="' . $uid . '" and  p.removed = 0 and v.category = "Papers" and not exists (select * from votes v2 where v2.voteUser = "' . $uid . '" and v2.voteId = v.voteId and v2.category = "Papers") group by v.voteId order by r desc limit 0,5';
-    $sql .= ' where s.user1=":uid" and  p.removed = 0 and v.category = "Papers" and not exists (select * from votes v2 where v2.voteUser = ":uid" and v2.voteId = v.voteId and v2.category = "Papers") group by v.voteId order by r desc limit 0,5';
+    $sql .= ' where s.user1=":uid" and  p.removed = 0 and v.category = "Papers" and not exists (select * from {votes} v2 where v2.voteUser = ":uid" and v2.voteId = v.voteId and v2.category = "Papers") group by v.voteId order by r desc limit 0,5';
     //$papers = $categories->query($sql)->fetchAll();
     $papers = db_query($sql, array(":uid" => $user->uid));
     //$this->view->recomPapers = $papers;
     // search similar users
-    $sql = 'select u.id, CASE u.useRealName WHEN 1 THEN CONCAT(u.firstName, \' \', u.lastName) WHEN 0 THEN s.user2 END AS realName from similar s ';
+    $sql = 'select u.id, CASE u.useRealName WHEN 1 THEN CONCAT(u.firstName, \' \', u.lastName) WHEN 0 THEN s.user2 END AS realName from {similar} s ';
     //$sql .= " left join users u on u.id=s.user2 where s.user1= '" . $uid . "' and s.value !=0 order by s.value desc limit 0,5";
-    $sql .= " left join users u on u.id=s.user2 where s.user1= ':uid' and s.value !=0 order by s.value desc limit 0,5";
+    $sql .= " left join {users} u on u.id=s.user2 where s.user1= ':uid' and s.value !=0 order by s.value desc limit 0,5";
     //$similarUsers = $categories->query($sql)->fetchAll();
     $similarUsers = db_query($sql, array(":uid" => $user->uid));
     //$this->view->similarUsers = $similarUsers;
     //$notified = new Notified();
     //$sql = 'select p.* from papers p right join notified n on n.paper = p.id where n.user="' . $uid . '" ORDER BY p.postTime DESC';
-    $sql = 'select p.* from papers p right join notified n on n.paper = p.id where n.user=":uid" ORDER BY p.postTime DESC';
+    $sql = 'select p.* from {papers} p right join {notified} n on n.paper = p.id where n.user=":uid" ORDER BY p.postTime DESC';
     $rowCount = sizeof(db_query($sql, array(":uid" => $user->uid)));
     //$this->view->rowCount = sizeof($notified->query($sql)->fetchAll());
 }
@@ -126,7 +126,7 @@ function updatesimilar() {
      */
 
     //calculate the vote value of voteUser to voteId
-    $sql = 'select voteUser, voteId, sum(case score when 1 then 1 when 10 then 5 when 3 then 5 end) as w from votes where category ="Papers" and voteUser != "guest" group by voteUser,voteId order by voteUser';
+    $sql = 'select voteUser, voteId, sum(case score when 1 then 1 when 10 then 5 when 3 then 5 end) as w from {votes} where category ="Papers" and voteUser != "guest" group by voteUser,voteId order by voteUser';
     //$weights = $post->query($sql)->fetchAll();
     $weights = db_query($sql);
 
@@ -171,8 +171,8 @@ function updatesimilar() {
                 $s = $wc / pow($wp1 * $wp2, 0.5);
                 //$row1 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user1 . '" and user2 = "' . $user2 . '" )'));
                 //$row2 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user2 . '" and user2 = "' . $user1 . '" )'));
-                $row1 = db_query("select * from similar where user1=:user1 and user2=:user2", array(":user1" => $user1, ":user2" => $user2))->execute;
-                $row2 = db_query("select * from similar where user1=:user2 and user2=:user1", array(":user1" => $user1, ":user2" => $user2))->execute;
+                $row1 = db_query("select * from {similar} where user1=:user1 and user2=:user2", array(":user1" => $user1, ":user2" => $user2))->execute;
+                $row2 = db_query("select * from {similar} where user1=:user2 and user2=:user1", array(":user1" => $user1, ":user2" => $user2))->execute;
                 if ($row1) {
                     $row1->value = $s;
                     $row1->updateTime = date('Y-m-d ');
