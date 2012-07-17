@@ -49,19 +49,26 @@ function recommendation_block_view($delta = ''){
     $blocks['subject'] = 'Recommendation';
     $contents = '<ul>';
     $recommendation = array();
+    //get all users who have similarity relationship with $user
     $similarity = db_query('SELECT * FROM {similarity} WHERE uid1=:uid1',array(':uid1' => $user->uid));
     foreach($similarity as $row){
-        $similar_entity = db_query('SELECT entity_id,value from {votingapi_vote} WHERE uid=:uid',array(':uid' => $row->uid2));
+        //for each similar user get all the node he has voted
+        $similar_entity = db_query('SELECT v.entity_id, v.value, n.title from {votingapi_vote}AS v LEFT JOIN {node} AS n ON n.nid=v.entity_id WHERE v.uid=:uid',array(':uid' => $row->uid2));
         foreach($similar_entity as $entity){
-            $recommendation[$entity->entity_id] = $recommendation[$entity->entity_id] + value;
+            $recommendation_title[$entity->entity_id] = $entity->title;
+            $recommendation_score[$entity->entity_id] = $recommendation_score[$entity->entity_id] + $entity->value * $row->score;
         }
     }
-    $num_recom = count($recommendation) > 10?10:count($recommendation);
-    asort($recommendation);
-    $recommendation_keys = array_keys($recommendation);
-    $recommendation_values = array_values($recommendation);
-    for($i = 0; $i < $num_recom; $i++){
-        $contents .= '<li>'.$$recommendation_keys[$i].":score ".$recommendation_values[$i].'</li>';
+    //decide the number of nodes to be recommended
+    $num_recom = variable_get('recommend_number');
+    $num_recom = count($recommendation_score) > $num_recom ? $num_recom : count($recommendation_score);
+    //sort the recommendation according to score DESC
+    asort($recommendation_score);
+    $recommendation_score = array_reverse($recommendation_score, TRUE);
+    //slice $recommendation_score array and get $num_recom highest recommendation
+    $recommendation_score = array_slice($recommendation_score, 0, $num_recom);
+    foreach($recommendation_score as $entity_id => $score){
+            $contents .= '<li><a href="node/'.$entity_id.'" target="_blank">'.$recommendation_title[$entity_id]."</a>:score ".$score.'</li>';
     }
      $contents .= '</ul>';
      $blocks['content'] = $contents;

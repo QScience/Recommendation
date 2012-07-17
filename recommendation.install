@@ -40,5 +40,6 @@ function recommendation_schema(){
  */
 function recommendation_install(){
     variable_set('recommend_entity_type','node');
+    //number of nodes to be recommended
     variable_set('recommend_number','10');
 }
