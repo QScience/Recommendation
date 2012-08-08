@@ -3,8 +3,10 @@
 /*
  * Implement hook_menu
  */
+ 
+module_load_include('api.inc', 'qtr','qtr');
 
-function recommendation_menu() {
+/*function recommendation_menu() {
     $items['recommendation/updatesimilarity'] = array(
         'title' => 'Update table similarity',
         'description' => 'Update table similarity i.e. the similarity score of all records',
@@ -14,7 +16,7 @@ function recommendation_menu() {
     );
 
     return $items;
-}
+}*/
 
 /*
  * Implemens hook_block_info
@@ -34,7 +36,53 @@ function recommendation_block_info() {
  */
 
 function recommendation_block_configure($delta = '') {
+	$form['description'] = array(
+    	'#markup' => '<p>' . t('You can specify !cron frequency to run this recommender. Click the button run now: ', 
+    	array('!cron' => l('cron', 'admin/config/system/cron'))) . '</p>',
+  	);
+  $form['run'] = array(
+    '#type' => 'submit',
+    '#value' => t('Run recommender'),
+    '#submit' => array('update_similarity'),
+  );
+	 $form['rec_number'] = array(
+      '#type' => 'select',
+      '#title' => t('Number of recommendation item'), 
+      '#options' => drupal_map_assoc(array(2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 25, 30)),
+      '#default_value' => variable_get('rec_number',10),
+    );	
+     $posttype = array ();$default = array();
+    foreach (node_type_get_types() as $type => $type_obj) {
+            $posttype[$type] = $type_obj->name;
+            if(variable_get('rec_block_'.$type,0)){
+              $default[]=$type;
+            }
+    }
     
+    $form['content_type'] = array(
+      '#type' => 'checkboxes', 
+      '#title' => t('Content type to recommendate:'), 
+      '#options' => $posttype,
+      '#default_value' => $default,
+    );
+
+  	$actions=qtr_get_actiontype();
+  	if($actions){
+  	foreach($actions as $action){
+  		$default_value=0;
+  		if($action->action=='view'){
+  			$default_value=1;
+  		}elseif($action->action=='download' || $action->action=='vote'){
+  			$default_value=5;
+  		}
+  		 $form['rec_w_'.$action->action] = array(
+    		'#type' => 'textfield',
+    		'#title' => t('Weight of %action action', array('%action'=>$action->action)),
+    		'#default_value' => variable_get('rec_w_'.$action->action, $default_value),
+  		);
+  	}
+  }
+    return $form;
 }
 
 /*
@@ -42,7 +90,21 @@ function recommendation_block_configure($delta = '') {
  */
 
 function recommendation_block_save($delta, $edit = array()) {
-    
+    foreach (node_type_get_types() as $type => $type_obj) {
+      if(variable_get('rec_block_'.$type,0)){
+        variable_del('rec_block_'.$type);
+      }
+    }
+   foreach($edit['content_type'] as $type){
+      variable_set('rec_block_'.$type, $type);
+   }
+  variable_set('rec_number',$edit['rec_number']);
+  $actions=qtr_get_actiontype();
+  if($actions){
+  foreach($actions as $action){
+   		variable_set('rec_w_'.$action->action,$edit['rec_w_'.$action->action]);
+  }
+  }
 }
 
 /*
@@ -56,31 +118,37 @@ function recommendation_block_view($delta = '') {
     $recommendation_title = array();
     $recommendation_score = array();
     //get all users who have similarity relationship with $user
-    $similarity = db_query('SELECT * FROM {similarity} WHERE uid1=:uid1', array(':uid1' => $user->uid));
-    foreach ($similarity as $row) {
-        //for each similar user get all the node he has voted
-        $similar_entity = db_query('SELECT v.entity_id, v.value, n.title from {votingapi_vote}AS v LEFT JOIN {node} AS n ON n.nid=v.entity_id WHERE v.uid=:uid', array(':uid' => $row->uid2));
-        foreach ($similar_entity as $entity) {
-            $recommendation_title[$entity->entity_id] = $entity->title;
-            if (isset($recommendation_score[$entity->entity_id])) {
-                $recommendation_score[$entity->entity_id] = $recommendation_score[$entity->entity_id] + $entity->value * $row->score;
-            } else {
-                $recommendation_score[$entity->entity_id] = $entity->value * $row->score;
+   // $similarity = db_query('SELECT * FROM {similarity} WHERE uid1=:uid1', array(':uid1' => $user->uid))->fetchAll();
+    $sql='SELECT a.nid, n.title, sum(case a.action_type ';
+    $actions=qtr_get_actiontype();
+  		if($actions){
+  			foreach($actions as $action){
+  				$sql.=' when '.$action->id.' then s.score *'.variable_get('rec_w_'.$action->action,0);
+  		}
+  	}
+    $sql.=' end) as value from {qtr_actions} AS a INNER JOIN {similarity} AS s ON a.uid=s.uid2 INNER JOIN {node} as n ON n.nid=a.nid WHERE s.uid1='.$user->uid.' and n.uid!='.$user->uid;
+    $i=0;
+    foreach (node_type_get_types() as $type => $type_obj) {
+            if(variable_get('rec_block_'.$type,0)){
+            	if($i==0){
+            		$i++;
+            		$sql.=' and (n.type=\''.$type.'\'';
+            	}else{
+            		$sql.=' OR n.type=\''.$type.'\'';
+            	}
             }
-        }
     }
-    //decide the number of nodes to be recommended
-    $num_recom = variable_get('recommend_number');
-    $num_recom = count($recommendation_score) > $num_recom ? $num_recom : count($recommendation_score);
-    if (!empty($recommendation_score)) {
-        //sort the recommendation according to score DESC
-        asort($recommendation_score);
-        $recommendation_score = array_reverse($recommendation_score, TRUE);
-        //slice $recommendation_score array and get $num_recom highest recommendation
-        $recommendation_score = array_slice($recommendation_score, 0, $num_recom);
-        foreach ($recommendation_score as $entity_id => $score) {
-            $contents .= '<li><a href="node/' . $entity_id . '" target="_blank">' . $recommendation_title[$entity_id] . "</a>:score " . $score . '</li>';
+    
+    $sql.=') and not exists (select * from {qtr_actions} as a2 where a2.uid = ' . $user->uid . ' and a2.nid = a.nid) GROUP BY nid ORDER BY value limit '.variable_get('rec_number',10);
+    $recommendation_list = db_query($sql)->fetchAll();
+
+    if (count($recommendation_list)>0) {
+
+        foreach ($recommendation_list as $entity) {
+            $contents .= '<li><a href="node/' . $entity->nid . '" target="_blank">' . $entity->title . '</a></li>';
         }
+    }else{
+    	$contents .= 'Sorry, there is noting to recomend to you yet.';
     }
     $contents .= '</ul>';
     $blocks['content'] = $contents;
@@ -107,14 +175,21 @@ function update_similarity() {
      *  where v_{ia} is the vote value of user i to paper a.
      */
     //if there is less than one user in table users except anonymous user(uid = 0),exit the function
-    $results = db_query("SELECT uid FROM {users} WHERE uid > :uid0", array("uid0" => 0));
+    $results = db_query("SELECT uid FROM {users} WHERE uid > :uid0", array("uid0" => 0))->fetchAll();;
     if (count($results) <= 1) {
         exit;
     }
-
     //calculate the vote value of uid to entity_id
-    $sql = 'SELECT uid, entity_id, value FROM {votingapi_vote} WHERE entity_type ="node" and uid != 0 GROUP BY uid, entity_id ORDER BY uid';
-    $weights = db_query($sql);
+    $sql = 'SELECT uid, nid, sum(case action_type ';
+     $actions=qtr_get_actiontype();
+  if($actions){
+  	foreach($actions as $action){
+  		$sql.=' when '.$action->id.' then '.variable_get('rec_w_'.$action->action,0);
+  	}
+  }
+  $sql.=' end) as w FROM {qtr_actions} WHERE uid != 0 GROUP BY uid, nid ORDER BY uid';
+  
+    $weights = db_query($sql)->fetchAll();
 
     //if there is less than one voting record, exit the function
     if (count($weights) <= 1) {
@@ -124,17 +199,17 @@ function update_similarity() {
     //calculate the the W_i for each user i
     //$w[i] : the W_i of user i
     $w = array();
-    $lastuser = $weights[0]["uid"];
+    $lastuser = $weights[0]->uid;
     $sum = 0;
     foreach ($weights as $weight) {
-        $uid = $weight["uid"];
+        $uid = $weight->uid;
         if ($uid != 0) {
             if ($uid != $lastuser) {
                 $w[$lastuser] = $sum;
                 $lastuser = $uid;
-                $sum = $weight["w"] * $weight["w"];
+                $sum = $weight->w * $weight->w;
             } else {
-                $sum += $weight["w"] * $weight["w"];
+                $sum += $weight->w * $weight->w;
             }
         }
     }
@@ -148,11 +223,11 @@ function update_similarity() {
         foreach ($w as $user2 => $wp2) {
             $wc = 0;
             foreach ($weights as $weight) {
-                if ($weight["uid"] == $user1) {
-                    $pid = $weight["entity_id"];
+                if ($weight->uid == $user1) {
+                    $pid = $weight->nid;
                     foreach ($weights as $weight2) {
-                        if ($weight2["uid"] == $user2 && $weight2["entity_id"] == $pid) {
-                            $wc += $weight["w"] * $weight2["w"];
+                        if ($weight2->uid == $user2 && $weight2->nid == $pid) {
+                            $wc += $weight->w * $weight2->w;
                         }
                     }
                 }
@@ -162,8 +237,8 @@ function update_similarity() {
                 $s = $wc / pow($wp1 * $wp2, 0.5);
                 //$row1 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user1 . '" and user2 = "' . $user2 . '" )'));
                 //$row2 = $similar->fetchRow($similar->select()->where('(user1 = "' . $user2 . '" and user2 = "' . $user1 . '" )'));
-                $row1 = db_query("select * from {similarity} where user1=:user1 and user2=:user2", array(":user1" => $user1, ":user2" => $user2));
-                $row2 = db_query("select * from {similarity} where user1=:user2 and user2=:user1", array(":user1" => $user1, ":user2" => $user2));
+                $row1 = db_query("select * from {similarity} where uid1=:user1 and uid2=:user2", array(":user1" => $user1, ":user2" => $user2))->fetchCol();
+                $row2 = db_query("select * from {similarity} where uid1=:user2 and uid2=:user1", array(":user1" => $user1, ":user2" => $user2))->fetchCol();
                 if ($row1) {
                     db_update("similarity")
                             ->fields(array(
@@ -209,4 +284,3 @@ function update_similarity() {
     }
 }
 
-?>

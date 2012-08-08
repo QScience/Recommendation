@@ -39,7 +39,15 @@ function recommendation_schema(){
  * Set default recommended entity type
  */
 function recommendation_install(){
-    variable_set('recommend_entity_type','node');
+	//set default node type to recommend
+ foreach (node_type_get_types() as $type => $type_obj) {
+      variable_set('rec_block_'.$type,$type);
+    }
     //number of nodes to be recommended
-    variable_set('recommend_number','10');
+    variable_set('rec_number','10');
+    //set default weight of different action
+    variable_set('rec_w_view',1);
+    variable_set('rec_w_download',5);
+    variable_set('rec_w_vote',5);
+     update_similarity();
 }

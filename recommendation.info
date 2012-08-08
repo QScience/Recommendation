@@ -2,3 +2,4 @@ name = Recommendation
 description = Personalized recommendation for the users of the Econophysics forum
 core = 7.x
 package = Recommendation
+dependencies[] = qtr
