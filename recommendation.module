@@ -28,6 +28,11 @@ function recommendation_block_info() {
         'region' => 'sidebar_first',
         'status' => TRUE
     );
+    $blocks['similar_user'] = array(
+        'info' => t('Similar users'),
+        'region' => 'sidebar_first',
+        'status' => TRUE
+    );
     return $blocks;
 }
 
@@ -36,6 +41,7 @@ function recommendation_block_info() {
  */
 
 function recommendation_block_configure($delta = '') {
+ if($delta=='recommendation'){
 	$form['description'] = array(
     	'#markup' => '<p>' . t('You can specify !cron frequency to run this recommender. Click the button run now: ', 
     	array('!cron' => l('cron', 'admin/config/system/cron'))) . '</p>',
@@ -83,6 +89,7 @@ function recommendation_block_configure($delta = '') {
   	}
   }
     return $form;
+ }
 }
 
 /*
@@ -90,6 +97,7 @@ function recommendation_block_configure($delta = '') {
  */
 
 function recommendation_block_save($delta, $edit = array()) {
+	if($delta=='recommendation'){
     foreach (node_type_get_types() as $type => $type_obj) {
       if(variable_get('rec_block_'.$type,0)){
         variable_del('rec_block_'.$type);
@@ -105,6 +113,7 @@ function recommendation_block_save($delta, $edit = array()) {
    		variable_set('rec_w_'.$action->action,$edit['rec_w_'.$action->action]);
   }
   }
+	}
 }
 
 /*
@@ -112,9 +121,13 @@ function recommendation_block_save($delta, $edit = array()) {
  */
 
 function recommendation_block_view($delta = '') {
+	if($delta=='recommendation'){
     global $user;
+    if($user->uid<1){
+			return false;
+		}
     $blocks['subject'] = 'Recommendation';
-    $contents = '<ul>';
+    $contents = '<div class="item-list"><ul>';
     $recommendation_title = array();
     $recommendation_score = array();
     //get all users who have similarity relationship with $user
@@ -150,9 +163,30 @@ function recommendation_block_view($delta = '') {
     }else{
     	$contents .= 'Sorry, there is noting to recomend to you yet.';
     }
-    $contents .= '</ul>';
+    $contents .= '</ul></div>';
     $blocks['content'] = $contents;
     return $blocks;
+	}else if($delta=='similar_user'){
+		global $user;
+		if($user->uid<1){
+			return false;
+		}
+    	$blocks['subject'] = 'Similar users';
+    	$contents = '<div class="item-list"><ul>';
+    	$sql='SELECT s.uid2 from {similarity} as s WHERE s.uid1= '.$user->uid.' and s.score>0 ORDER BY s.score limit 5';
+    	$susers= db_query($sql)->fetchAll();
+    	if (count($susers)>0) {
+        	foreach ($susers as $suser) {
+        		$user=user_load($suser->uid2);
+            	$contents .= '<li><a href="user/' . $suser->uid2 . '" target="_blank">' . $user->name . '</a></li>';
+        	}
+    	}else{
+    	$contents .= 'Sorry, there is no similar users of you yet.';
+    }
+    $contents .= '</ul></div>';
+    $blocks['content'] = $contents;
+    return $blocks;
+	}
 }
 
 /*
