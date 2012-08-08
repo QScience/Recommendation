@@ -1,0 +1,18 @@
+
+Recommendation module can recommend contents and similar users for login user based on the user's actions. 
+It depends on QTR module. It read data from qtr_actions table and use user-based CF algorithm to calculate the result.
+After install it, two blocks will be add to the site: "Recommendation" and "Similar users". "Recommendation" 
+will show the recommend contents list, and "Similar users" will show the users who are similar with current user.
+For "Recommendation" block, there are some setting options in it's configure page. They are:  
+
+1. run recommender
+   The users' similarity that calculate by CF algorithm is saved in the database, and it's updated by cron. Click 
+   "run recommender" button will run the CF algorithm and update the similarity table.
+   
+2. Content type to recommendate
+		There will list all the content types that can be selected to be shown in the recommendation result list. Initially, all the content types are selected. 
+		
+3. Weight of actions
+   Administrator can set weight for different action type. The action types are identified by the "qtr_action_types" table.
+
+

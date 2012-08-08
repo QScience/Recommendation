@@ -134,7 +134,7 @@ function recommendation_block_view($delta = '') {
    // $similarity = db_query('SELECT * FROM {similarity} WHERE uid1=:uid1', array(':uid1' => $user->uid))->fetchAll();
     $sql='SELECT a.nid, n.title, sum(case a.action_type ';
     $actions=qtr_get_actiontype();
-  		if($actions){
+  	if($actions){
   			foreach($actions as $action){
   				$sql.=' when '.$action->id.' then s.score *'.variable_get('rec_w_'.$action->action,0);
   		}
@@ -177,8 +177,8 @@ function recommendation_block_view($delta = '') {
     	$susers= db_query($sql)->fetchAll();
     	if (count($susers)>0) {
         	foreach ($susers as $suser) {
-        		$user=user_load($suser->uid2);
-            	$contents .= '<li><a href="user/' . $suser->uid2 . '" target="_blank">' . $user->name . '</a></li>';
+        		$getuser=user_load($suser->uid2);
+            	$contents .= '<li><a href="user/' . $suser->uid2 . '" target="_blank">' . $getuser->name . '</a></li>';
         	}
     	}else{
     	$contents .= 'Sorry, there is no similar users of you yet.';
