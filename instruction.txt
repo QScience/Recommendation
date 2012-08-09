@@ -9,7 +9,7 @@ For "Recommendation" block, there are some setting options in it's configure pag
    The users' similarity that calculate by CF algorithm is saved in the database, and it's updated by cron. Click 
    "run recommender" button will run the CF algorithm and update the similarity table.
    
-2. Content type to recommendate
+2. Content type to recommend
 		There will list all the content types that can be selected to be shown in the recommendation result list. Initially, all the content types are selected. 
 		
 3. Weight of actions

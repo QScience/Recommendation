@@ -67,7 +67,7 @@ function recommendation_block_configure($delta = '') {
     
     $form['content_type'] = array(
       '#type' => 'checkboxes', 
-      '#title' => t('Content type to recommendate:'), 
+      '#title' => t('Content type to recommend:'), 
       '#options' => $posttype,
       '#default_value' => $default,
     );
