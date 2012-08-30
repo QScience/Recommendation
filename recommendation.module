@@ -158,7 +158,7 @@ function recommendation_block_view($delta = '') {
     if (count($recommendation_list)>0) {
 
         foreach ($recommendation_list as $entity) {
-            $contents .= '<li><a href="node/' . $entity->nid . '" target="_blank">' . $entity->title . '</a></li>';
+            $contents .= '<li><a href="'.url('node/' . $entity->nid) . '" target="_blank">' . $entity->title . '</a></li>';
         }
     }else{
     	$contents .= 'Sorry, there is noting to recomend to you yet.';
@@ -178,7 +178,7 @@ function recommendation_block_view($delta = '') {
     	if (count($susers)>0) {
         	foreach ($susers as $suser) {
         		$getuser=user_load($suser->uid2);
-            	$contents .= '<li><a href="user/' . $suser->uid2 . '" target="_blank">' . $getuser->name . '</a></li>';
+            	$contents .= '<li><a href="'.url('user/' . $suser->uid2) . '" target="_blank">' . $getuser->name . '</a></li>';
         	}
     	}else{
     	$contents .= 'Sorry, there is no similar users of you yet.';
