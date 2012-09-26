@@ -127,7 +127,7 @@ function recommendation_block_view($delta = '') {
 			return false;
 		}
     $blocks['subject'] = 'Recommendation';
-    $contents = '<ul>';
+    $contents = '<ul red_arrow_li>';
     $recommendation_title = array();
     $recommendation_score = array();
     //get all users who have similarity relationship with $user
@@ -172,7 +172,7 @@ function recommendation_block_view($delta = '') {
 			return false;
 		}
     	$blocks['subject'] = 'Similar users';
-    	$contents = '<ul>';
+    	$contents = '<ul class="red_arrow_li2">';
     	$sql='SELECT s.uid2 from {similarity} as s WHERE s.uid1= '.$user->uid.' and s.score>0 ORDER BY s.score limit 5';
     	$susers= db_query($sql)->fetchAll();
     	if (count($susers)>0) {
