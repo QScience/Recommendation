@@ -181,7 +181,7 @@ function recommendation_block_view($delta = '') {
             	$contents .= '<li><a href="'.url('user/' . $suser->uid2) . '" target="_blank">' . $getuser->name . '</a></li>';
         	}
     	}else{
-    	$contents .= 'Sorry, there is no similar users of you yet.';
+    	$contents .= 'Sorry, there are no similar users for you yet.';
     }
     $contents .= '</ul>';
     $blocks['content'] = $contents;
