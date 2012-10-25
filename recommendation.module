@@ -127,7 +127,7 @@ function recommendation_block_view($delta = '') {
 			return false;
 		}
     $blocks['subject'] = 'Recommendation';
-    $contents = '<ul red_arrow_li>';
+    $contents = '<ul class="red_arrow_li">';
     $recommendation_title = array();
     $recommendation_score = array();
     //get all users who have similarity relationship with $user
