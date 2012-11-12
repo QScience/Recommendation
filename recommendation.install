@@ -28,7 +28,11 @@ function recommendation_schema(){
                 'unsigned' => TRUE,
                 'description' => 'Timestamp that when the score is updated.Table similarity will be updated in a certain time that can be configured'
             )
-        )
+        ),
+        'indexes' => array(
+            'sim_uid' => array('uid1','uid2'),
+        		'sim_score'=>array('score'),
+        ),
     );
     return $schema;
 }
@@ -49,5 +53,5 @@ function recommendation_install(){
     variable_set('rec_w_view',1);
     variable_set('rec_w_download',5);
     variable_set('rec_w_vote',5);
-     update_similarity();
+    update_similarity();
 }

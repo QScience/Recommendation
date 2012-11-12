@@ -204,6 +204,7 @@ function recommendation_cron() {
  */
 
 function update_similarity() {
+	throw new exception(1);
     /* similarity of user i and j are defined as 
      * s_{ij}=\sum{v_{ia}v_{ja}}/(W_iW_j)
      *  where v_{ia} is the vote value of user i to paper a.
